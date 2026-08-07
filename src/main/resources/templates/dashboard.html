@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UPI Offline Mesh — Demo Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0c10;
+    --panel:#12161d;
+    --panel-2:#161b23;
+    --border:#232a35;
+    --text:#e6e9ef;
+    --muted:#7c8494;
+    --signal:#00d9a3;
+    --signal-dim:#0a3d31;
+    --amber:#ffb454;
+    --amber-dim:#3d2f10;
+    --red:#ff5c5c;
+    --red-dim:#3d1414;
+    --blue:#5ec8ff;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --display:'Space Grotesk', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--mono); font-size:14px;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(0,217,163,0.05), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(94,200,255,0.05), transparent 40%);
+  }
+  header{
+    padding:28px 32px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  }
+  header h1{
+    font-family:var(--display); font-size:22px; font-weight:700; margin:0;
+    letter-spacing:-0.01em;
+  }
+  header h1 .dim{ color:var(--muted); font-weight:500; }
+  .tagline{ color:var(--muted); font-size:12.5px; margin-top:4px; }
+  .badge{
+    font-size:11px; text-transform:uppercase; letter-spacing:0.08em;
+    padding:4px 10px; border-radius:20px; border:1px solid var(--signal);
+    color:var(--signal); background:var(--signal-dim);
+  }
+  .wrap{ max-width:1320px; margin:0 auto; padding:24px 32px 60px; }
+  .grid{ display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start; }
+  @media (max-width:980px){ .grid{ grid-template-columns:1fr; } }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:18px 18px 20px; margin-bottom:20px;
+  }
+  .panel h2{
+    font-family:var(--display); font-size:13px; text-transform:uppercase; letter-spacing:0.08em;
+    color:var(--muted); margin:0 0 14px; display:flex; align-items:center; gap:8px;
+  }
+  .panel h2 .num{ color:var(--signal); }
+
+  label{ display:block; font-size:11.5px; color:var(--muted); margin:12px 0 5px; text-transform:uppercase; letter-spacing:0.05em; }
+  input, select{
+    width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text);
+    padding:9px 10px; border-radius:6px; font-family:var(--mono); font-size:13.5px;
+  }
+  input:focus, select:focus{ outline:none; border-color:var(--signal); }
+
+  button{
+    font-family:var(--mono); font-size:13px; font-weight:600; cursor:pointer;
+    border-radius:6px; padding:10px 14px; border:1px solid var(--border);
+    background:var(--panel-2); color:var(--text); width:100%; margin-top:10px;
+    transition:border-color .15s, transform .05s;
+  }
+  button:hover{ border-color:var(--signal); }
+  button:active{ transform:scale(0.98); }
+  button.primary{ background:var(--signal); border-color:var(--signal); color:#04140f; }
+  button.primary:hover{ filter:brightness(1.08); }
+  button.ghost{ background:transparent; }
+  button.danger{ color:var(--red); }
+  button.danger:hover{ border-color:var(--red); }
+  button:disabled{ opacity:0.4; cursor:not-allowed; }
+
+  .steps{ display:flex; flex-direction:column; gap:8px; }
+  .step-btn{ text-align:left; display:flex; align-items:center; gap:10px; }
+  .step-btn .n{
+    width:20px; height:20px; border-radius:50%; background:var(--panel-2); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0;
+  }
+
+  /* mesh visualization */
+  .mesh-canvas{ position:relative; height:260px; }
+  .node{
+    position:absolute; width:96px; text-align:center; transform:translate(-50%,-50%);
+  }
+  .node .dot{
+    width:44px; height:44px; margin:0 auto 6px; border-radius:50%;
+    background:var(--panel-2); border:2px solid var(--border);
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+    position:relative; transition:border-color .2s, box-shadow .2s;
+  }
+  .node.has-packets .dot{ border-color:var(--amber); box-shadow:0 0 16px rgba(255,180,84,0.35); }
+  .node.bridge .dot{ border-color:var(--blue); }
+  .node.bridge.has-packets .dot{ border-color:var(--amber); }
+  .node .count{
+    position:absolute; top:-6px; right:-6px; background:var(--amber); color:#241a04;
+    font-size:10px; font-weight:700; min-width:16px; height:16px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center; padding:0 3px;
+  }
+  .node .label{ font-size:11px; color:var(--muted); }
+  .node .sub{ font-size:9.5px; color:var(--blue); text-transform:uppercase; letter-spacing:0.04em; }
+  svg.mesh-lines{ position:absolute; inset:0; width:100%; height:100%; }
+  svg.mesh-lines line{ stroke:var(--border); stroke-width:1; }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  th, td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }
+  th{ color:var(--muted); text-transform:uppercase; font-size:10.5px; letter-spacing:0.05em; font-weight:600; }
+  td.num{ font-variant-numeric:tabular-nums; }
+  td.mono-hash{ color:var(--muted); font-size:11px; }
+  .empty-row td{ color:var(--muted); text-align:center; padding:18px; }
+
+  .pill{ display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:0.04em; font-weight:600; }
+  .pill.SETTLED{ background:var(--signal-dim); color:var(--signal); }
+  .pill.DUPLICATE_DROPPED{ background:var(--amber-dim); color:var(--amber); }
+  .pill.INVALID{ background:var(--red-dim); color:var(--red); }
+  .pill.RATE_LIMITED{ background:var(--red-dim); color:var(--red); }
+
+  .log{
+    background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    padding:12px 14px; height:180px; overflow-y:auto; font-size:12px; line-height:1.6;
+  }
+  .log .line{ color:var(--muted); }
+  .log .line .t{ color:#454c5a; margin-right:8px; }
+  .log .line.ok{ color:var(--signal); }
+  .log .line.warn{ color:var(--amber); }
+  .log .line.err{ color:var(--red); }
+
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:980px){ .two-col{ grid-template-columns:1fr; } }
+
+  .footer-note{ color:var(--muted); font-size:11.5px; margin-top:24px; line-height:1.6; }
+  .footer-note a{ color:var(--blue); }
+  code{ background:var(--panel-2); padding:1px 5px; border-radius:4px; font-size:11.5px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>UPI Offline Mesh <span class="dim">/ demo console</span></h1>
+    <div class="tagline">mesh-routed deferred settlement — no internet, anywhere in the chain, until a bridge phone walks outside</div>
+  </div>
+  <span class="badge" id="live-badge">● server reachable</span>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+
+    <!-- LEFT: compose + pipeline -->
+    <div>
+      <div class="panel">
+        <h2><span class="num">01</span> Compose payment</h2>
+        <label>Sender VPA</label>
+        <select id="senderVpa">
+          <option value="alice@upi">alice@upi</option>
+          <option value="bob@upi">bob@upi</option>
+          <option value="carol@upi">carol@upi</option>
+          <option value="dave@upi">dave@upi</option>
+        </select>
+        <label>Receiver VPA</label>
+        <select id="receiverVpa">
+          <option value="bob@upi">bob@upi</option>
+          <option value="alice@upi">alice@upi</option>
+          <option value="carol@upi">carol@upi</option>
+          <option value="dave@upi">dave@upi</option>
+        </select>
+        <label>Amount (₹)</label>
+        <input id="amount" type="number" value="500" min="1" step="1">
+        <label>PIN</label>
+        <input id="pin" type="password" value="1234">
+        <button class="primary" onclick="composeAndInject()">📤 Inject into Mesh</button>
+      </div>
+
+      <div class="panel">
+        <h2><span class="num">02–04</span> Demo pipeline</h2>
+        <div class="steps">
+          <button class="step-btn" onclick="runGossip()"><span class="n">1</span> 🔄 Run Gossip Round</button>
+          <button class="step-btn" onclick="flushBridges()"><span class="n">2</span> 📡 Bridges Upload to Backend</button>
+          <button class="step-btn ghost danger" onclick="resetMesh()"><span class="n">↺</span> Reset Mesh + Caches</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Server key</h2>
+        <div id="server-key" style="word-break:break-all; font-size:10.5px; color:var(--muted);">loading…</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: mesh viz + tables -->
+    <div>
+      <div class="panel">
+        <h2>Mesh state — 5 virtual devices</h2>
+        <div class="mesh-canvas" id="mesh-canvas">
+          <svg class="mesh-lines" id="mesh-lines"></svg>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <h2>Account balances</h2>
+          <table>
+            <thead><tr><th>VPA</th><th>Name</th><th>Balance</th></tr></thead>
+            <tbody id="accounts-body"><tr class="empty-row"><td colspan="3">loading…</td></tr></tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <h2>Transaction ledger</h2>
+          <table>
+            <thead><tr><th>Route</th><th>Amt</th><th>Outcome</th></tr></thead>
+            <tbody id="tx-body"><tr class="empty-row"><td colspan="3">no transactions yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Pipeline event log</h2>
+        <div class="log" id="event-log">
+          <div class="line"><span class="t">--:--:--</span>waiting for first action…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    Endpoints: <code>GET /api/accounts</code> · <code>GET /api/transactions</code> · <code>GET /api/mesh/state</code> ·
+    <code>POST /api/bridge/ingest</code> · full reference at <a href="/swagger-ui.html">/swagger-ui.html</a> ·
+    DB console at <a href="/h2-console">/h2-console</a> (JDBC URL <code>jdbc:h2:mem:upimesh</code>, user <code>sa</code>, no password)
+  </div>
+</div>
+
+<script>
+const NODE_POS = {
+  'phone-alice':     {x:'50%', y:'20%'},
+  'phone-stranger1': {x:'18%', y:'55%'},
+  'phone-stranger2': {x:'50%', y:'85%'},
+  'phone-bridge':    {x:'82%', y:'55%'},
+  'phone-carol':     {x:'50%', y:'55%'}
+};
+const NODE_ICON = { 'phone-alice':'📱','phone-stranger1':'👤','phone-stranger2':'👤','phone-bridge':'📡','phone-carol':'📱' };
+
+function log(msg, cls){
+  const el = document.getElementById('event-log');
+  const t = new Date().toLocaleTimeString();
+  const line = document.createElement('div');
+  line.className = 'line' + (cls ? ' ' + cls : '');
+  line.innerHTML = '<span class="t">' + t + '</span>' + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function api(path, opts){
+  const res = await fetch(path, opts);
+  document.getElementById('live-badge').textContent = res.ok ? '● server reachable' : '● server error';
+  if (!res.ok && res.status !== 204) {
+    const body = await res.text();
+    throw new Error(body || res.statusText);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+async function loadServerKey(){
+  try{
+    const data = await api('/api/server-key');
+    document.getElementById('server-key').textContent = data.publicKeyBase64.slice(0, 120) + '…';
+  }catch(e){ document.getElementById('server-key').textContent = 'unreachable'; }
+}
+
+async function loadAccounts(){
+  const rows = await api('/api/accounts');
+  const body = document.getElementById('accounts-body');
+  body.innerHTML = '';
+  rows.forEach(a => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${a.vpa}</td><td>${a.displayName}</td><td class="num">₹${Number(a.balance).toFixed(2)}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+async function loadTransactions(){
+  const rows = await api('/api/transactions');
+  const body = document.getElementById('tx-body');
+  body.innerHTML = '';
+  if (rows.length === 0){
+    body.innerHTML = '<tr class="empty-row"><td colspan="3">no transactions yet</td></tr>';
+    return;
+  }
+  rows.forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${t.senderVpa} → ${t.receiverVpa}</td><td class="num">₹${Number(t.amount).toFixed(2)}</td><td><span class="pill SETTLED">settled</span></td>`;
+    body.appendChild(tr);
+  });
+}
+
+async function loadMeshState(){
+  const state = await api('/api/mesh/state');
+  const canvas = document.getElementById('mesh-canvas');
+  canvas.querySelectorAll('.node').forEach(n => n.remove());
+  const lines = document.getElementById('mesh-lines');
+  lines.innerHTML = '';
+
+  const deviceIds = Object.keys(NODE_POS);
+  // draw connecting lines between every pair (fully-connected mesh in this simulator)
+  for (let i=0;i<deviceIds.length;i++){
+    for (let j=i+1;j<deviceIds.length;j++){
+      const a = NODE_POS[deviceIds[i]], b = NODE_POS[deviceIds[j]];
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
+      line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
+      lines.appendChild(line);
+    }
+  }
+
+  deviceIds.forEach(id => {
+    const info = state[id] || {hasInternet:false, packetCount:0};
+    const pos = NODE_POS[id];
+    const div = document.createElement('div');
+    div.className = 'node' + (info.packetCount > 0 ? ' has-packets' : '') + (info.hasInternet ? ' bridge' : '');
+    div.style.left = pos.x; div.style.top = pos.y;
+    div.innerHTML = `
+      <div class="dot">${NODE_ICON[id]}${info.packetCount > 0 ? `<span class="count">${info.packetCount}</span>` : ''}</div>
+      <div class="label">${id}</div>
+      ${info.hasInternet ? '<div class="sub">bridge · has 4G</div>' : ''}
+    `;
+    canvas.appendChild(div);
+  });
+}
+
+async function refreshAll(){
+  await Promise.all([loadAccounts(), loadTransactions(), loadMeshState()]);
+}
+
+async function composeAndInject(){
+  try{
+    const body = {
+      senderVpa: document.getElementById('senderVpa').value,
+      receiverVpa: document.getElementById('receiverVpa').value,
+      amount: Number(document.getElementById('amount').value),
+      pin: document.getElementById('pin').value,
+      originDeviceId: 'phone-alice'
+    };
+    const packet = await api('/api/demo/send', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    log(`packet <b>${packet.packetId.slice(0,8)}…</b> encrypted + signed, injected at phone-alice (ttl=${packet.ttl})`, 'ok');
+    await refreshAll();
+  }catch(e){ log('inject failed: ' + e.message, 'err'); }
+}
+
+async function runGossip(){
+  try{
+    await api('/api/mesh/gossip', { method:'POST' });
+    log('gossip round complete — packets propagated to devices in range');
+    await refreshAll();
+  }catch(e){ log('gossip failed: ' + e.message, 'err'); }
+}
+
+async function flushBridges(){
+  try{
+    const results = await api('/api/mesh/flush', { method:'POST' });
+    if (results.length === 0){ log('no bridge device is currently holding a packet'); }
+    results.forEach(r => {
+      const cls = r.outcome === 'SETTLED' ? 'ok' : (r.outcome === 'DUPLICATE_DROPPED' ? 'warn' : 'err');
+      log(`${r.bridgeNodeId} → <span class="pill ${r.outcome}">${r.outcome}</span> pkt ${r.packetId.slice(0,8)}… ${r.reason ? '('+r.reason+')' : ''} sig=${r.signatureVerified}`, cls);
+    });
+    await refreshAll();
+  }catch(e){ log('flush failed: ' + e.message, 'err'); }
+}
+
+async function resetMesh(){
+  try{
+    await api('/api/mesh/reset', { method:'POST' });
+    log('mesh + idempotency + rate-limit caches cleared', 'warn');
+    await refreshAll();
+  }catch(e){ log('reset failed: ' + e.message, 'err'); }
+}
+
+loadServerKey();
+refreshAll();
+setInterval(loadMeshState, 4000);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Comment these out (and the depends_on below) to run on the default
+      # in-memory H2 profile instead.
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/upimesh
+      DB_USERNAME: upimesh
+      DB_PASSWORD: upimesh
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: upimesh
+      POSTGRES_USER: upimesh
+      POSTGRES_PASSWORD: upimesh
+    ports:
+      - "5432:5432"
+    volumes:
+      - upimesh-db-data:/var/lib/postgresql/data
+
+volumes:
+  upimesh-db-data:
