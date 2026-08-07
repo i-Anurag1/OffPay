@@ -20,7 +20,7 @@ jobs:
           cache: maven
 
       - name: Build and run tests
-        run: ./mvnw -B -DskipTests=false verify
+        run: bash mvnw -B -DskipTests=false verify
 
       - name: Upload test reports
         if: always()
