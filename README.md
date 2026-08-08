@@ -1,10 +1,6 @@
-# UPI Offline Mesh — Demo
+# UPI Offline Mesh (OffPay) — Demo
 
 A Spring Boot backend that demonstrates **offline UPI payments routed through a Bluetooth-style mesh network**. You're in a basement with zero connectivity. You send your friend ₹500. Your phone signs and encrypts the payment, broadcasts it to nearby phones, and the packet hops device-to-device until *some* phone walks outside, gets 4G, and silently uploads it to this backend. The backend verifies, decrypts, deduplicates, and settles.
-
-# OffPay - UPI Offline Mesh
-
-A mesh-based offline payment system using Spring Boot, H2 Database, Docker and event-driven architecture.
 
 ## Demo
 
