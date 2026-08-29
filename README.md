@@ -17,11 +17,7 @@ The backend verifies authenticity, prevents duplicate payments, detects replay a
 
 Demo URL:
 
-https://candy-teens-meters-green.trycloudflare.com/
-
-Note:
-The demo runs through Cloudflare Tunnel from local deployment. The link stays active only while the server is running.
-
+https://off-pay-five.vercel.app/
 ---
 
 # Key Features
